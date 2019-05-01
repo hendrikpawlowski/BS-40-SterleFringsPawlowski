@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -36,41 +37,49 @@ int main() {
     printf("Server is running\n");
 
     while (true) {
+
+        // int result = fork();
+
         fileDescriptor = accept(sock, (struct sockaddr *) &client, &client_len);
         if (fileDescriptor > 0) {
             printf("Client connected\n");
         }
 
-        write(fileDescriptor, welcomeString, sizeof(welcomeString));
+        int pid = fork();   // startet neuen Prozess
 
-        while (true) {
+        if (pid > 0) {  // wenn der Prozess der Elternprozess ist, wird der Client bearbeitet
 
-            write(fileDescriptor, ">", sizeof(">"));
-            memset(buffer, '\0', sizeof(buffer));   // buffer wird geleert
+            write(fileDescriptor, welcomeString, sizeof(welcomeString));
 
-            read(fileDescriptor, buffer, sizeof(buffer));   // es wird gewartet, bis der client etwas eingegeben hat
-            printf("BUFFER: %s\n", buffer);
+            while (true) {
 
-            if (compare(tempString, buffer, sizeof(tempString) - 1, strlen(buffer) - 2)) {
+                write(fileDescriptor, ">", sizeof(">"));
+                memset(buffer, '\0', sizeof(buffer));   // buffer wird geleert
 
-                printf("GET TEMPERATURE wurde aufgerufen\n");
-                int result = print_temperature(fileDescriptor);
-                //printf("a: %d\n", a);
+                read(fileDescriptor, buffer, sizeof(buffer));   // es wird gewartet, bis der client etwas eingegeben hat
+                printf("BUFFER: %s\n", buffer);
 
-            } else if (compare(humString, buffer, sizeof(humString) - 1, strlen(buffer) - 2)) {
+                if (compare(tempString, buffer, sizeof(tempString) - 1, strlen(buffer) - 2)) {
 
-                printf("GET HUMIDITY wurde aufgerufen\n");
-                int result = print_humidity(fileDescriptor);
+                    printf("GET TEMPERATURE wurde aufgerufen\n");
+                    int result = print_temperature(fileDescriptor);
 
-            } else if (compare(helpString, buffer, sizeof(helpString) - 1, strlen(buffer) - 2)) {
+                } else if (compare(humString, buffer, sizeof(humString) - 1, strlen(buffer) - 2)) {
 
-                printf("HELP wurde aufgerufen\n");
-                write(fileDescriptor, helpString2, sizeof(helpString2));
+                    printf("GET HUMIDITY wurde aufgerufen\n");
+                    int result = print_humidity(fileDescriptor);
 
-            } else {
-                write(fileDescriptor, "Sorry, this is not a valid command\n\n",
-                      sizeof("Sorry, this is not a valid command\n\n"));
+                } else if (compare(helpString, buffer, sizeof(helpString) - 1, strlen(buffer) - 2)) {
+
+                    printf("HELP wurde aufgerufen\n");
+                    write(fileDescriptor, helpString2, sizeof(helpString2));
+
+                } else {
+                    write(fileDescriptor, novalidcommandString, sizeof(novalidcommandString));
+                }
             }
+        } else {    // wenn der Prozess der Kindprozess ist, wird der fileDescriptor geschlossen
+            close(fileDescriptor);
         }
     }
     return 0;
