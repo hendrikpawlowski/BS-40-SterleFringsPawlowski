@@ -4,9 +4,21 @@
 #define false 0
 
 
+int clearBuffer(char *buffer) {
+    for (int i = 0; i < strlen(buffer); i++) {
+        if (buffer[i] == '\n') {
+            buffer[i] = '\0';
+        }
+        if (buffer[i] == '\r') {
+            buffer[i] = '\0';
+        }
+    }
+    return 0;
+}
+
 int compare(char *x, char *y, int sizex, int sizey) {
 
-    if(sizex != sizey) return false;
+    if (sizex != sizey) return false;
 
     for (int i = 0; i < sizex; i++) {
 
