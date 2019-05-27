@@ -19,7 +19,7 @@ int print_temperature (int fileDescriptor) {
     char str[1024];
     // printf("temp: %f\n", temp);
     sprintf(str, "temperature=%.2f\n\n", temp);
-    printf("%s", str);
+    // printf("%s", str);
     write(fileDescriptor, str, strlen(str));
 
     return 0;

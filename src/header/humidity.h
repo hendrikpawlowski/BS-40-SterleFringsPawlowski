@@ -19,7 +19,7 @@ int print_humidity(int fileDescriptor) {
     char str[1024];
     // printf("temp: %f\n", temp);
     sprintf(str, "humidity=%.2f\n\n", humidity);
-    printf("%s", str);
+    // printf("%s", str);
     write(fileDescriptor, str, strlen(str));
 
     return 0;
