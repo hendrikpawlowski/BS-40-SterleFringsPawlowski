@@ -35,7 +35,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-#include "grovepi.h"
+#include "./grovepi.h"
 
 int fd;
 char *fileName = "/dev/i2c-1";

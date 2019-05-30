@@ -1,13 +1,22 @@
-#define WORKWITHCLIENT_H
-
 #include "./ourstrings.h"
-
-#define maxClients 5
 
 char buffer[1024];
 
 
-int workWithClient(int fileDescriptor, int *shar_mem, int clientid) {
+/*
+int disconnect(clientPeers *shar_mem, char *clientip) {
+    for (int i = 0; i < entryLength; i++) {
+        if (strcmp(shar_mem->clientList[i].ip, clientip) == 0) {
+            printf("IF ENTERED\n");
+            printf("i: %d\n", i);
+            memset(shar_mem->clientList[i].ip, '\0', strlen(shar_mem->clientList[i].ip));
+            break;
+        }
+    }
+    return 0;
+}*/
+
+int workWithClient(int fileDescriptor, clientPeers *shar_mem, char *clientip) {
 
     write(fileDescriptor, welcomeString, sizeof(welcomeString));
 
@@ -19,60 +28,56 @@ int workWithClient(int fileDescriptor, int *shar_mem, int clientid) {
 
         int readSize = read(fileDescriptor, buffer, sizeof(buffer));
         if (readSize == 0) {
-            // die ip adresse von dem client wird aus dem shared memory entfernt
-            for (int i = 0; i < maxClients; i++) {
-                if (shar_mem[i] == clientid) {
-                    shar_mem[i] = 0;
-                    break;
-                }
-            }
+            createNewEntry(shar_mem, "DISCONNECTED", clientip, "client");
             exit(0);
         }
+
+        /*if (readSize == 0) {
+            // es wird ein neuer Eintrag erstellt, in welchem der Client den Status disconneted bekommt
+            disconnect(shar_mem, clientip);
+            exit(0);
+        }*/
 
         // überflüssige Zeichen wie '\n' werden aus dem buffer entfernt
         clearBuffer(buffer);
 
         if (strcmp("GET TEMPERATURE", buffer) == 0) {
 
-            printf("Client %s called GET TEMPERATURE\n", (char *) clientid);
+            printf("Client %s called GET TEMPERATURE\n", (char *) clientip);
             print_temperature(fileDescriptor);
 
         } else if (strcmp("GET HUMIDITY", buffer) == 0) {
 
-            printf("Client %s called GET HUMIDITY\n", (char *) clientid);
+            printf("Client %s called GET HUMIDITY\n", (char *) clientip);
             print_humidity(fileDescriptor);
 
         } else if (strcmp("HELP", buffer) == 0) {
 
-            printf("Client %s called HELP\n", (char *) clientid);
+            printf("Client %s called HELP\n", (char *) clientip);
             write(fileDescriptor, helpString2, sizeof(helpString2));
 
         } else if (strcmp("PEERS", buffer) == 0) {
 
-            printf("Client %s called PEERS\n", (char *) clientid);
+            printf("Client %s called PEERS\n", (char *) clientip);
 
             char output[] = "Following clients are connected\n";
             write(fileDescriptor, output, strlen(output));
-            // die ip adresse von dem client wird in das shared memory hineingeschrieben
-            for (int i = 0; i < maxClients; i++) {
-                if (shar_mem[i] != 0) {
-                    write(fileDescriptor, (char *) shar_mem[i], strlen((char *) shar_mem[i]));
-                    write(fileDescriptor, "\n", strlen("\n"));
-                    printf("Client [%d]: %s\n", i, (char *) shar_mem[i]);
-                }
+
+            for (int i = 0; i < entryLength; i++) {
+                write(fileDescriptor, shar_mem->clientList[i].ip, strlen(shar_mem->clientList[i].ip));
+                write(fileDescriptor, "\n", strlen("\n"));
+                printf("TEST: %s\n", shar_mem->clientList[i].status);
+                write(fileDescriptor, shar_mem->clientList[i].status, strlen(shar_mem->clientList[i].status));
+                write(fileDescriptor, "\n", strlen("\n"));
+                write(fileDescriptor, shar_mem->clientList[i].function, strlen(shar_mem->clientList[i].function));
+
+                write(fileDescriptor, "\n", strlen("\n"));
+                write(fileDescriptor, "\n", strlen("\n"));
             }
-            write(fileDescriptor, "\n", strlen("\n"));
 
         } else if (strcmp("EXIT", buffer) == 0) {
 
-            // die ip adresse von dem client wird aus dem shared memory entfernt
-            for (int i = 0; i < maxClients; i++) {
-                if (shar_mem[i] == clientid) {
-                    shar_mem[i] = 0;
-                    break;
-                }
-            }
-            printf("Client %s disconnected\n", (char *) clientid);
+            createNewEntry(shar_mem, "DISCONNECTED", clientip, "client");
             exit(0);
 
         } else {

@@ -1,3 +1,7 @@
+//////////// Unsere Datentypen ////////
+#include "./header/ourdatatypes.h"
+///////////////////////////////////////
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,22 +21,19 @@
 #include "./header/temperature.h"
 #include "./header/humidity.h"
 #include "./header/workWithClient.h"
-#include "./header/requestOtherServer.h"
+#include "./header/connectWithOtherServer.h"
 
 #define true 1
 #define false 0
-#define maxClients 5
-
-// setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &(int) {1}, sizeof(int));
 
 
 int main() {
 
     int sock, fileDescriptor, client_len;
-    struct sockaddr_in client, serverAddr = setUpServerInfos(7654);
-    client_len = sizeof(client);
+    struct sockaddr_in clientAddr, serverAddr = setUpServerInfos(7654);
+    client_len = sizeof(clientAddr);
 
-    int shmid, *shar_mem, clientid;
+    int shmid;
 
     // socket wird erstellt
     sock = socket(AF_INET, SOCK_STREAM, 0);     // socket wird erstellt
@@ -45,67 +46,76 @@ int main() {
     listen(sock, 5);
 
     // ein neues segment wird angelegt
-    shmid = shmget(IPC_PRIVATE, sizeof(int[maxClients]), IPC_CREAT | 0600);
+    shmid = shmget(IPC_PRIVATE, sizeof(clientPeers), IPC_CREAT | 0600);
     if (shmid == -1) printf("shared memory failed\n");
-    shar_mem = shmat(shmid, 0, 0);
+    // shar_mem = shmat(shmid, 0, 0);
 
     printf("Server is running\n");
 
-    if (fork() == 0) {
+    int firstFork = fork();
+
+    if (firstFork > 0) {
 
         while (true) {
 
-            fileDescriptor = accept(sock, (struct sockaddr *) &client, &client_len);
+            fileDescriptor = accept(sock, (struct sockaddr *) &clientAddr, &client_len);
             if (fileDescriptor == -1) printf("file descriptor failed");
 
             int pid = fork();
 
             if (pid == 0) {  // wenn der Prozess der Kinderprozess ist, wird der Client bearbeitet
 
-                clientid = inet_ntoa(client.sin_addr);
-                printf("Client %s connected\n", (char *) clientid);
+                clientPeers *shar_mem;
+                shar_mem = (clientPeers *) shmat(shmid, 0, 0);
 
-                for (int i = 0; i < maxClients; i++) {
-                    if (shar_mem[i] == 0) {
-                        shar_mem[i] = clientid;
-                        break;
-                    }
-                }
+                char *clientip = inet_ntoa(clientAddr.sin_addr);
+                printf("Client %s connected\n", (char *) clientip);
 
-                workWithClient(fileDescriptor, (int *) shar_mem, clientid);
+                createNewEntry(shar_mem, "CONNECTED", clientip, "client");
+                workWithClient(fileDescriptor, shar_mem, clientip);
 
-            } else if (pid > 0) {    // wenn der Prozess der Elternprozess ist, wird der fileDescriptor geschlossen
+            } else if (pid > 0) {
+                // wenn der Prozess der Elternprozess ist, wird der fileDescriptor geschlossen
+                // und der Elternprozess wartet auf weitere eingehende Clients
                 close(fileDescriptor);
+
             } else if (pid < 0) {
                 printf("fork failed\n");
 
-                // nur da damit kein endless loop angezeigt wird
+                // nur da, damit kein endless loop angezeigt wird
                 return 0;
             }
         }
+    } else if (firstFork == 0) {
 
-    } else {
-
-        ////////////////////////////////////////////////////////////////
-        /// Hier kann man Eingaben in der Konsole des Servers machen ///
-        ////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////
+/// Hier kann man Eingaben in der Konsole des Servers machen ///
+////////////////////////////////////////////////////////////////
 
         while (true) {
             printf("\nEnter command\nType HELP to see possible commands\n");
-            char buffer[1024];
+            char input[1024];
 
-            printf("> ");
+            printf(">");
+            scanf("%s", &input);
 
-            scanf("%s", &buffer);
+            if (strcmp(input, "CONNECT") == 0) {
 
-            char ip[] ="192.168.178.54";
-            int port = 4321;
+                char ip[ipLength];
+                int port;
+                printf("IP: ");
+                scanf("%s", &ip);
+                printf("\nPORT: ");
+                scanf("%d", &port);
 
-            requestOtherServer(ip, port);
+                connectWithOtherServer(ip, port);
 
-            if (strcmp(buffer, "SHUTDOWN") == 0) {
+            } else if (strcmp(input, "SHUTDOWN") == 0) {
+                printf("Shutdown ausgeführt");
                 return 0;
             }
         }
+    } else if (firstFork < 0) {
+        printf("first fork failed\n");
     }
 }
