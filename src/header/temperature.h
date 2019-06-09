@@ -6,7 +6,7 @@
 #include <stdlib.h>
 
 
-int print_temperature (int fileDescriptor) {
+int print_temperature(int fileDescriptor) {
 
     float temp = 0.0;
     int port = 8;
@@ -17,10 +17,9 @@ int print_temperature (int fileDescriptor) {
     getTemperature(&temp, port);
 
     char str[1024];
-    // printf("temp: %f\n", temp);
-    sprintf(str, "temperature=%.2f\n\n", temp);
-    // printf("%s", str);
+    sprintf(str, "temperature=%.2f", temp);
     write(fileDescriptor, str, strlen(str));
+    write(fileDescriptor, "\n\n", sizeof("\n\n"));
 
     return 0;
 }

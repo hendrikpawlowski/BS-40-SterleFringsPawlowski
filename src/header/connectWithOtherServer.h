@@ -1,8 +1,9 @@
-int connectWithOtherServer(char *ip, int port) {
+int connectWithOtherServer(peers *shar_mem, int semid, int id, char *ip, int port) {
 
     char buf[1024];
+    char msg[] = "GET TEMPERATURE\0";
     struct sockaddr_in server;
-    int sock;
+    int sock, initialized = -1;
 
     sock = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -10,25 +11,47 @@ int connectWithOtherServer(char *ip, int port) {
     server.sin_port = htons(port);
     server.sin_addr.s_addr = inet_addr(ip);
 
-    connect(sock, (struct sockaddr *) &server, sizeof(server));
+    // es wird eine Verbindung zu dem Server mit der übergebenen IP und Port aufgebaut
+    if (connect(sock, (struct sockaddr *) &server, sizeof(server)) < 0) {
+        printf("\n\n(Connection to\nIP: %d\nPort: %d\nfailed)\n\n>", ip, port);
+        exit(0);
+    } else {
+        printf("\n\n(Connection established)\n\n>");
+    }
 
+    while (1) {
+        // GET TEMPERATURE wird gesendet
+        if (write(sock, msg, sizeof(msg)) == -1) printf("sending failed\n");
 
-    //while (1) {
-
-        char *msg[1024];
-        printf("\nEnter message");
-        scanf("%s", &msg);
-
-        write(sock, msg, sizeof(msg));
-
-        // send(sock, "GET TEMPERATURE", sizeof("GET TEMPERATURE"), 0);
-
-        // recv(sock, buf, sizeof(buf), 0);
-        // memset(buf, '\0', sizeof(buf));
-
+        memset(buf, 0, sizeof(buf));
         read(sock, buf, sizeof(buf));
-        printf("\nBUFFER\n[%s]\n", buf);
 
-        //return 0;
-    //}
+        // Der Buffer wird so oft geleert und ausgelesen bis dieser mit "temperatur=" anfängt
+        while (contains(buf, "temperature=", strlen("temperature=")) == -1) {
+            memset(buf, 0, sizeof(buf));
+            read(sock, buf, sizeof(buf));
+        }
+
+        // aus der Antwort einheit=wert wird der wert herausgenommen und als float gespeichert
+        char *tempstr;
+        // strtok schneidet den token "temperature=" aus dem String heraus
+        tempstr = strtok(buf, "temperature=");
+        // strtof = string to float
+        float temp = strtof(tempstr, NULL);
+
+        if (initialized == -1) {
+            // ein neuer Eintrag in der Server Liste wird erstellt
+            createNewServerEntry(shar_mem, semid, id, "CONNECTED", ip, port, "server", temp);
+            initialized++;
+        } else {
+            // ein Eintrag aus der Server Liste wird mit aktuellen Temperatur Werten aktualisiert
+            updateServerEntry(shar_mem, semid, id, temp);
+        }
+
+        // nur dazu da, damit kein endless loop angezeigt wird
+        if (strcmp("Hi", "NO") == 0) {
+            return 0;
+        }
+        sleep(10);
+    }
 }

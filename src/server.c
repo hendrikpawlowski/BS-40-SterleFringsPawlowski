@@ -16,6 +16,8 @@
 #include <string.h>
 #include <stdbool.h>
 #include <arpa/inet.h>
+#include <sys/sem.h>
+#include "./header/mysemaphore.h"
 #include "./header/helpfunctions.h"
 #include "./header/grovepi.h"
 #include "./header/temperature.h"
@@ -23,38 +25,111 @@
 #include "./header/workWithClient.h"
 #include "./header/connectWithOtherServer.h"
 
-#define true 1
-#define false 0
 
+peers *initSharedMemory() {
+    int shmid = shmget(IPC_PRIVATE, sizeof(peers), IPC_CREAT | 0600);
+    if (shmid == -1) {
+        printf("shared memory failed\n");
+    }
 
-int main() {
+    peers *shar_mem;
+    shar_mem = (peers *) shmat(shmid, 0, 0);
+    setupSharMemIDs(shar_mem);
 
-    int sock, fileDescriptor, client_len;
-    struct sockaddr_in clientAddr, serverAddr = setUpServerInfos(7654);
-    client_len = sizeof(clientAddr);
+    return shar_mem;
+}
 
-    int shmid;
-
-    // socket wird erstellt
-    sock = socket(AF_INET, SOCK_STREAM, 0);     // socket wird erstellt
-    if (sock == -1) printf("socket failed\n");
+int initSocket(struct sockaddr_in serverAddr) {
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock == -1) {
+        printf("socket failed\n");
+    }
     setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &(int) {1}, sizeof(int));
     // binde adresse an das socket
     int b = bind(sock, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
-    if (b == -1) printf("binding failed\n");
+    if (b == -1) {
+        printf("binding failed\n");
+    }
     // wie viele clients dürfen auf das socket zugreifen
     listen(sock, 5);
 
-    // ein neues segment wird angelegt
-    shmid = shmget(IPC_PRIVATE, sizeof(clientPeers), IPC_CREAT | 0600);
-    if (shmid == -1) printf("shared memory failed\n");
-    // shar_mem = shmat(shmid, 0, 0);
+    return sock;
+}
 
-    printf("Server is running\n");
+int initSemaphore() {
+    int semaphore = semget(IPC_PRIVATE, 1, IPC_CREAT | 0777);
+    if (semaphore < 0) {
+        printf("semaphore failed");
+    }
+    return semaphore;
+}
 
-    int firstFork = fork();
+int main() {
 
-    if (firstFork > 0) {
+
+    //int lol;
+    //init();
+    //printf("Lol: %d", lol);
+
+
+    int serverPort;
+    printf("On which port should your server run?\n");
+    scanf("%d", &serverPort);
+    int fileDescriptor, client_len;
+    struct sockaddr_in clientAddr, serverAddr = setUpServerInfos(serverPort);
+    client_len = sizeof(clientAddr);
+
+    // shared memory wird zugewiesen
+    /*shmid = shmget(IPC_PRIVATE, sizeof(peers), IPC_CREAT | 0600);
+    if (shmid == -1) {
+        printf("shared memory failed\n");
+        return -1;
+    }
+    peers *shar_mem;
+    shar_mem = (peers *) shmat(shmid, 0, 0);
+    setupSharMem(shar_mem);
+*/
+
+
+    peers *shar_mem = initSharedMemory();
+
+
+    /*
+    // socket wird erstellt
+    sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock == -1) {
+        printf("socket failed\n");
+        return -1;
+    }
+    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &(int) {1}, sizeof(int));
+    // binde adresse an das socket
+    int b = bind(sock, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
+    if (b == -1) {
+        printf("binding failed\n");
+        return -1;
+    }
+
+    // wie viele clients dürfen auf das socket zugreifen
+    listen(sock, 5);
+     */
+    int sock = initSocket(serverAddr);
+
+    /*
+    // Semaphore wird erstellt
+    semid = semget(IPC_PRIVATE, 1, IPC_CREAT | 0777);
+    if (semid < 0) {
+        printf("semaphore failed");
+        return -1;
+    }
+     */
+    int semaphore = initSemaphore();
+
+    printf("Server is running on Port %d\n", serverPort);
+
+    // ein Prozess kümmert sich um eingehende Clients und der andere Prozess kann sich mit Servern verbinden
+    int clientServerFork = fork();
+
+    if (clientServerFork > 0) {
 
         while (true) {
 
@@ -63,16 +138,14 @@ int main() {
 
             int pid = fork();
 
-            if (pid == 0) {  // wenn der Prozess der Kinderprozess ist, wird der Client bearbeitet
-
-                clientPeers *shar_mem;
-                shar_mem = (clientPeers *) shmat(shmid, 0, 0);
+            if (pid == 0) {
+                // wenn der Prozess der Kinderprozess ist, wird der Client bearbeitet
 
                 char *clientip = inet_ntoa(clientAddr.sin_addr);
                 printf("Client %s connected\n", (char *) clientip);
 
-                createNewEntry(shar_mem, "CONNECTED", clientip, "client");
-                workWithClient(fileDescriptor, shar_mem, clientip);
+                // createNewClientEntry(shar_mem, "CONNECTED", clientip, CLIENT_ONLY);
+                workWithClient(fileDescriptor, shar_mem, semaphore, clientip);
 
             } else if (pid > 0) {
                 // wenn der Prozess der Elternprozess ist, wird der fileDescriptor geschlossen
@@ -86,36 +159,45 @@ int main() {
                 return 0;
             }
         }
-    } else if (firstFork == 0) {
+    } else if (clientServerFork == 0) {
 
-////////////////////////////////////////////////////////////////
-/// Hier kann man Eingaben in der Konsole des Servers machen ///
-////////////////////////////////////////////////////////////////
+        // Wenn man hier CONNECT aufruft, kann man sich mit einem anderen Server verbinden
+        // jeder Server bekommt eine ID zugewiesen
+        int id = 1;
 
         while (true) {
-            printf("\nEnter command\nType HELP to see possible commands\n");
             char input[1024];
 
-            printf(">");
+            printf("\n>");
             scanf("%s", &input);
 
             if (strcmp(input, "CONNECT") == 0) {
 
                 char ip[ipLength];
                 int port;
-                printf("IP: ");
+                printf("IP>");
                 scanf("%s", &ip);
-                printf("\nPORT: ");
+                printf("PORT>");
                 scanf("%d", &port);
 
-                connectWithOtherServer(ip, port);
+                int pid = fork();
 
+                if (pid > 0) {
+                    // Der Elternprozess inkrementiert die id und geht danach wieder an den Anfang der while-Schleife
+                    // und wartet auf weitere Befehle
+                    id++;
+                } else if (pid == 0) {
+                    // Der Kindprozess arbeitet mit dem Server
+                    connectWithOtherServer(shar_mem, semaphore, id, ip, port);
+                } else {
+                    printf("fork failed");
+                }
             } else if (strcmp(input, "SHUTDOWN") == 0) {
-                printf("Shutdown ausgeführt");
+                printf("Server closed");
                 return 0;
             }
         }
-    } else if (firstFork < 0) {
+    } else if (clientServerFork < 0) {
         printf("first fork failed\n");
     }
 }

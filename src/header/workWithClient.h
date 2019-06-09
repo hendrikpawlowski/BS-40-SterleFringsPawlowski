@@ -1,23 +1,11 @@
 #include "./ourstrings.h"
 
-char buffer[1024];
 
+int workWithClient(int fileDescriptor, peers *shar_mem, int semaphore, char *clientip) {
 
-/*
-int disconnect(clientPeers *shar_mem, char *clientip) {
-    for (int i = 0; i < entryLength; i++) {
-        if (strcmp(shar_mem->clientList[i].ip, clientip) == 0) {
-            printf("IF ENTERED\n");
-            printf("i: %d\n", i);
-            memset(shar_mem->clientList[i].ip, '\0', strlen(shar_mem->clientList[i].ip));
-            break;
-        }
-    }
-    return 0;
-}*/
+    createNewClientEntry(shar_mem, semaphore, "CONNECTED", clientip, CLIENT_ONLY);
 
-int workWithClient(int fileDescriptor, clientPeers *shar_mem, char *clientip) {
-
+    char buffer[1024];
     write(fileDescriptor, welcomeString, sizeof(welcomeString));
 
     while (true) {
@@ -28,17 +16,11 @@ int workWithClient(int fileDescriptor, clientPeers *shar_mem, char *clientip) {
 
         int readSize = read(fileDescriptor, buffer, sizeof(buffer));
         if (readSize == 0) {
-            createNewEntry(shar_mem, "DISCONNECTED", clientip, "client");
+            createNewClientEntry(shar_mem, semaphore, "DISCONNECTED", clientip, CLIENT_ONLY);
             exit(0);
         }
+        printf("BUFFER: %s\n", buffer);
 
-        /*if (readSize == 0) {
-            // es wird ein neuer Eintrag erstellt, in welchem der Client den Status disconneted bekommt
-            disconnect(shar_mem, clientip);
-            exit(0);
-        }*/
-
-        // überflüssige Zeichen wie '\n' werden aus dem buffer entfernt
         clearBuffer(buffer);
 
         if (strcmp("GET TEMPERATURE", buffer) == 0) {
@@ -59,25 +41,16 @@ int workWithClient(int fileDescriptor, clientPeers *shar_mem, char *clientip) {
         } else if (strcmp("PEERS", buffer) == 0) {
 
             printf("Client %s called PEERS\n", (char *) clientip);
-
-            char output[] = "Following clients are connected\n";
+            char output[] = "\n\n";
             write(fileDescriptor, output, strlen(output));
 
-            for (int i = 0; i < entryLength; i++) {
-                write(fileDescriptor, shar_mem->clientList[i].ip, strlen(shar_mem->clientList[i].ip));
-                write(fileDescriptor, "\n", strlen("\n"));
-                printf("TEST: %s\n", shar_mem->clientList[i].status);
-                write(fileDescriptor, shar_mem->clientList[i].status, strlen(shar_mem->clientList[i].status));
-                write(fileDescriptor, "\n", strlen("\n"));
-                write(fileDescriptor, shar_mem->clientList[i].function, strlen(shar_mem->clientList[i].function));
-
-                write(fileDescriptor, "\n", strlen("\n"));
-                write(fileDescriptor, "\n", strlen("\n"));
-            }
+            printf("LoL");
+            showAllPeers(fileDescriptor, semaphore, shar_mem);
 
         } else if (strcmp("EXIT", buffer) == 0) {
 
-            createNewEntry(shar_mem, "DISCONNECTED", clientip, "client");
+            printf("Client %s called EXIT\n", (char *) clientip);
+            createNewClientEntry(shar_mem, semaphore, "DISCONNECTED", clientip, CLIENT_ONLY);
             exit(0);
 
         } else {
