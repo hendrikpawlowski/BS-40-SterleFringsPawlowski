@@ -55,7 +55,7 @@ int createNewClientEntry(peers *shar_mem, int semaphore, int msgQueue, char *sta
     long type;
     memset(msg, 0, sizeof(msg));
     // Nachrichten mit dem Status DISCONNECTED haben eine höhere Prioriät
-    if (strcmp(status, "DISCONNECTED") == 0) type = 1;
+    if (strcmp(status, DISCONNECTED) == 0) type = 1;
     else type = 1;
     sprintf(msg, "%s\n%s", clientip, status);
     send_(msgQueue, msg, type);
@@ -64,7 +64,7 @@ int createNewClientEntry(peers *shar_mem, int semaphore, int msgQueue, char *sta
 }
 
 // erzeugt einen neuen Server Eintrag in dem Shared Memory
-int createNewServerEntry(peers *shar_mem, int semaphore, int msgQueue, int id, char *status, char *ip, int port,
+int createNewServerEntry(peers *shar_mem, int semaphore, int id, char *status, char *ip, int port,
                          char *function,
                          float temp) {
 

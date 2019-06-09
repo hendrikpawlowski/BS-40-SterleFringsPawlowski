@@ -1,7 +1,6 @@
 //////////// Unsere Datentypen ////////
 #include "header/datatypes.h"
-///////////////////////////////////////
-
+#include "./header/ourstrings.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

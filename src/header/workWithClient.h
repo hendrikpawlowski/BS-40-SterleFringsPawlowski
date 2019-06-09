@@ -1,6 +1,3 @@
-#include "./ourstrings.h"
-
-
 int workWithClient(int fileDescriptor, peers *shar_mem, int semaphore, int msgQueue, char *clientip) {
 
     createNewClientEntry(shar_mem, semaphore, msgQueue, CONNECTED, clientip, CLIENT_ONLY);
@@ -19,8 +16,6 @@ int workWithClient(int fileDescriptor, peers *shar_mem, int semaphore, int msgQu
             createNewClientEntry(shar_mem, semaphore, msgQueue, DISCONNECTED, clientip, CLIENT_ONLY);
             exit(0);
         }
-        printf("BUFFER: %s\n", buffer);
-
         clearBuffer(buffer);
 
         if (strcmp("GET TEMPERATURE", buffer) == 0) {

@@ -1,4 +1,4 @@
-int connectWithOtherServer(peers *shar_mem, int semid, int msgQueue, int id, char *serverip, int port) {
+int connectWithOtherServer(peers *shar_mem, int semaphore, int msgQueue, int id, char *serverip, int port) {
 
     char buf[1024];
     char msg[] = "GET TEMPERATURE\0";
@@ -41,11 +41,11 @@ int connectWithOtherServer(peers *shar_mem, int semid, int msgQueue, int id, cha
 
         if (initialized == -1) {
             // ein neuer Eintrag in der Server Liste wird erstellt
-            createNewServerEntry(shar_mem, semid, msgQueue, id, CONNECTED, serverip, port, SERVER, temp);
+            createNewServerEntry(shar_mem, semaphore, id, CONNECTED, serverip, port, SERVER, temp);
             initialized++;
         } else {
             // ein Eintrag aus der Server Liste wird mit aktuellen Temperatur Werten aktualisiert
-            updateServerEntry(shar_mem, semid, id, temp);
+            updateServerEntry(shar_mem, semaphore, id, temp);
         }
         sleep(10);
     }
