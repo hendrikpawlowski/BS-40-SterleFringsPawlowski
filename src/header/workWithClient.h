@@ -1,14 +1,14 @@
 #include "./ourstrings.h"
 
 
-int workWithClient(int fileDescriptor, peers *shar_mem, int semaphore, char *clientip) {
+int workWithClient(int fileDescriptor, peers *shar_mem, int semaphore, int msgQueue, char *clientip) {
 
-    createNewClientEntry(shar_mem, semaphore, "CONNECTED", clientip, CLIENT_ONLY);
+    createNewClientEntry(shar_mem, semaphore, msgQueue, CONNECTED, clientip, CLIENT_ONLY);
 
     char buffer[1024];
     write(fileDescriptor, welcomeString, sizeof(welcomeString));
 
-    while (true) {
+    while (1) {
 
         write(fileDescriptor, ">", sizeof(">"));
         // buffer wird geleert
@@ -16,7 +16,7 @@ int workWithClient(int fileDescriptor, peers *shar_mem, int semaphore, char *cli
 
         int readSize = read(fileDescriptor, buffer, sizeof(buffer));
         if (readSize == 0) {
-            createNewClientEntry(shar_mem, semaphore, "DISCONNECTED", clientip, CLIENT_ONLY);
+            createNewClientEntry(shar_mem, semaphore, msgQueue, DISCONNECTED, clientip, CLIENT_ONLY);
             exit(0);
         }
         printf("BUFFER: %s\n", buffer);
@@ -36,7 +36,7 @@ int workWithClient(int fileDescriptor, peers *shar_mem, int semaphore, char *cli
         } else if (strcmp("HELP", buffer) == 0) {
 
             printf("Client %s called HELP\n", (char *) clientip);
-            write(fileDescriptor, helpString2, sizeof(helpString2));
+            write(fileDescriptor, helpString, sizeof(helpString));
 
         } else if (strcmp("PEERS", buffer) == 0) {
 
@@ -50,7 +50,7 @@ int workWithClient(int fileDescriptor, peers *shar_mem, int semaphore, char *cli
         } else if (strcmp("EXIT", buffer) == 0) {
 
             printf("Client %s called EXIT\n", (char *) clientip);
-            createNewClientEntry(shar_mem, semaphore, "DISCONNECTED", clientip, CLIENT_ONLY);
+            createNewClientEntry(shar_mem, semaphore, msgQueue, DISCONNECTED, clientip, CLIENT_ONLY);
             exit(0);
 
         } else {

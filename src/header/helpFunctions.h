@@ -31,7 +31,7 @@ int setupSharMemIDs(peers *shar_mem) {
 }
 
 // erzeugt einen neuen Client Eintrag in dem Shared Memory
-int createNewClientEntry(peers *shar_mem, int semaphore, char *status, char *clientip, char *function) {
+int createNewClientEntry(peers *shar_mem, int semaphore, int msgQueue, char *status, char *clientip, char *function) {
 
     time_t now = time(NULL);
     char *time_str = ctime(&now);
@@ -51,18 +51,27 @@ int createNewClientEntry(peers *shar_mem, int semaphore, char *status, char *cli
     /// ENDE kritischer Bereich
     up(semaphore);
 
+    char msg[msgLength];
+    long type;
+    memset(msg, 0, sizeof(msg));
+    // Nachrichten mit dem Status DISCONNECTED haben eine höhere Prioriät
+    if (strcmp(status, "DISCONNECTED") == 0) type = 1;
+    else type = 1;
+    sprintf(msg, "%s\n%s", clientip, status);
+    send_(msgQueue, msg, type);
+
     return 0;
 }
 
 // erzeugt einen neuen Server Eintrag in dem Shared Memory
-int createNewServerEntry(peers *shar_mem, int semaphore, int id, char *status, char *ip, int port, char *function,
+int createNewServerEntry(peers *shar_mem, int semaphore, int msgQueue, int id, char *status, char *ip, int port,
+                         char *function,
                          float temp) {
 
-    // Dieaktuelle Zeit wird ermittelt
+    // Die aktuelle Zeit wird ermittelt
     time_t now = time(NULL);
     char *time_str = ctime(&now);
     clearBuffer(time_str);
-
 
     down(semaphore);
     /// ANFANG kritischer Bereich

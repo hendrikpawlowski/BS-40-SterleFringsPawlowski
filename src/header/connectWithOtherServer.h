@@ -1,4 +1,4 @@
-int connectWithOtherServer(peers *shar_mem, int semid, int id, char *ip, int port) {
+int connectWithOtherServer(peers *shar_mem, int semid, int msgQueue, int id, char *serverip, int port) {
 
     char buf[1024];
     char msg[] = "GET TEMPERATURE\0";
@@ -9,11 +9,11 @@ int connectWithOtherServer(peers *shar_mem, int semid, int id, char *ip, int por
 
     server.sin_family = AF_INET;
     server.sin_port = htons(port);
-    server.sin_addr.s_addr = inet_addr(ip);
+    server.sin_addr.s_addr = inet_addr(serverip);
 
     // es wird eine Verbindung zu dem Server mit der übergebenen IP und Port aufgebaut
     if (connect(sock, (struct sockaddr *) &server, sizeof(server)) < 0) {
-        printf("\n\n(Connection to\nIP: %d\nPort: %d\nfailed)\n\n>", ip, port);
+        printf("\n\n(Connection to\nIP: %s\nPort: %d\nfailed)\n\n>", serverip, port);
         exit(0);
     } else {
         printf("\n\n(Connection established)\n\n>");
@@ -41,16 +41,11 @@ int connectWithOtherServer(peers *shar_mem, int semid, int id, char *ip, int por
 
         if (initialized == -1) {
             // ein neuer Eintrag in der Server Liste wird erstellt
-            createNewServerEntry(shar_mem, semid, id, "CONNECTED", ip, port, "server", temp);
+            createNewServerEntry(shar_mem, semid, msgQueue, id, CONNECTED, serverip, port, SERVER, temp);
             initialized++;
         } else {
             // ein Eintrag aus der Server Liste wird mit aktuellen Temperatur Werten aktualisiert
             updateServerEntry(shar_mem, semid, id, temp);
-        }
-
-        // nur dazu da, damit kein endless loop angezeigt wird
-        if (strcmp("Hi", "NO") == 0) {
-            return 0;
         }
         sleep(10);
     }

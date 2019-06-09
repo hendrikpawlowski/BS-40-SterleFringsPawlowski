@@ -1,11 +1,14 @@
 #include <time.h>
 
+#define GREEN "green"
+#define RED "red"
 #define clientEntryLength 20
 #define serverEntryLength 20
 #define ipLength 15
 #define statusLength 13
 #define functionLength 12
 #define timeLength 28
+#define msgLength 100
 
 
 typedef struct s {
@@ -31,3 +34,8 @@ typedef struct cPeers {
     client clientList[clientEntryLength];
     server serverList[serverEntryLength];
 } peers;
+
+typedef struct message_{
+    long mtype;
+    char mtext[msgLength];
+} message;
